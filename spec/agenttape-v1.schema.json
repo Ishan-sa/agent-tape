@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agenttape.dev/spec/agenttape-v1.schema.json",
+  "title": "AgentTape V1 JSONL Line",
+  "description": "Each JSONL row is either a metadata line or an event line.",
+  "oneOf": [{ "$ref": "#/$defs/metaLine" }, { "$ref": "#/$defs/eventLine" }],
+  "$defs": {
+    "jsonValue": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "boolean" },
+        { "type": "number" },
+        { "type": "string" },
+        { "type": "array", "items": { "$ref": "#/$defs/jsonValue" } },
+        { "type": "object", "additionalProperties": { "$ref": "#/$defs/jsonValue" } }
+      ]
+    },
+    "metaLine": {
+      "type": "object",
+      "required": ["lineType", "format", "runId", "createdAt"],
+      "properties": {
+        "lineType": { "const": "meta" },
+        "format": { "const": "agenttape.v1" },
+        "runId": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "agent": { "type": "string" },
+        "source": { "type": "string" },
+        "tags": { "type": "object", "additionalProperties": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "eventLine": {
+      "type": "object",
+      "required": ["lineType", "id", "runId", "sequence", "timestamp", "eventType", "payload"],
+      "properties": {
+        "lineType": { "const": "event" },
+        "id": { "type": "string", "minLength": 1 },
+        "runId": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "eventType": {
+          "type": "string",
+          "enum": [
+            "run_started",
+            "llm_call_started",
+            "llm_call_completed",
+            "tool_call_started",
+            "tool_call_completed",
+            "run_completed",
+            "run_failed"
+          ]
+        },
+        "payload": { "$ref": "#/$defs/jsonValue" },
+        "redaction": {
+          "type": "object",
+          "required": ["count", "keys"],
+          "properties": {
+            "count": { "type": "integer", "minimum": 0 },
+            "keys": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

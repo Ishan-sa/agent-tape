@@ -1,0 +1,7 @@
+{
+  "name": "@agenttape/diff-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentTape diff engine package (implemented in Phase 2)",
+  "license": "MIT"
+}

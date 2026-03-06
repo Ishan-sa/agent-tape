@@ -1,0 +1,29 @@
+{
+  "name": "@agenttape/cli",
+  "version": "0.3.0",
+  "description": "AgentTape CLI",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agenttape": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@agenttape/adapter-openai": "workspace:*",
+    "@agenttape/core": "workspace:*",
+    "@agenttape/replay-engine": "workspace:*",
+    "commander": "^14.0.1"
+  }
+}

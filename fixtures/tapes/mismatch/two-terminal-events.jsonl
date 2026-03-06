@@ -1,0 +1,4 @@
+{"lineType":"meta","format":"agenttape.v1","runId":"run_mismatch_terminal","createdAt":"2026-03-06T00:00:00.000Z","agent":"node examples/support-agent-openai/index.js","source":"fixture"}
+{"lineType":"event","id":"evt_1","runId":"run_mismatch_terminal","sequence":1,"timestamp":"2026-03-06T00:00:01.000Z","eventType":"run_started","payload":{"adapter":"openai","command":"node examples/support-agent-openai/index.js"}}
+{"lineType":"event","id":"evt_2","runId":"run_mismatch_terminal","sequence":2,"timestamp":"2026-03-06T00:00:02.000Z","eventType":"run_completed","payload":{"ok":true}}
+{"lineType":"event","id":"evt_3","runId":"run_mismatch_terminal","sequence":3,"timestamp":"2026-03-06T00:00:03.000Z","eventType":"run_failed","payload":{"error":"should-not-exist"}}
