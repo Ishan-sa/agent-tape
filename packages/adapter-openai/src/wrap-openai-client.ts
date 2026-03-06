@@ -53,7 +53,7 @@ export function wrapOpenAIClient<TClient extends OpenAIStyleClient>(
         if (replaySession) {
           const mode = getReplayMode();
           if (mode !== "full") {
-            throw new Error(`Replay mode ${mode} is not implemented in Phase 3. Use --mode full.`);
+            throw new Error(`Replay mode ${mode} is not implemented yet. Use --mode full.`);
           }
 
           const replayed = replaySession.replayLlmCall(requestSnapshot(request));

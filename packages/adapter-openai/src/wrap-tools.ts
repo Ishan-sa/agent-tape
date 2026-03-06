@@ -25,7 +25,7 @@ export function wrapTools<T extends Record<string, ToolHandler>>(
       if (replaySession) {
         const mode = getReplayMode();
         if (mode !== "full") {
-          throw new Error(`Replay mode ${mode} is not implemented in Phase 3. Use --mode full.`);
+          throw new Error(`Replay mode ${mode} is not implemented yet. Use --mode full.`);
         }
 
         const replayed = replaySession.replayToolCall(name, safeValue(args), context?.callId);

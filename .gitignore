@@ -1,6 +1,8 @@
 node_modules/
 .DS_Store
 *.log
+.tmp/
+coverage/
 packages/*/dist/
 examples/*/dist/
 examples/*/*.js

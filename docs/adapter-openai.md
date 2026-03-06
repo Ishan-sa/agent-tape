@@ -2,14 +2,19 @@
 
 Package: `@agenttape/adapter-openai`
 
-Implemented:
+## Purpose
+
+Provide a narrow OpenAI-tools-style integration surface for AgentTape v1.
+
+## Exports
+
 - `createRunRecorderFromEnv()`
 - `wrapOpenAIClient(client, recorder)`
 - `wrapTools(tools, recorder)`
 
 ## Recording Mode
 
-`agenttape record` sets recording env vars and the adapter appends events to tape:
+When `agenttape record` sets recording env vars, wrapped calls emit:
 - `llm_call_started`
 - `llm_call_completed`
 - `tool_call_started`
@@ -18,22 +23,13 @@ Implemented:
 
 ## Replay Mode
 
-`agenttape replay` sets replay env vars:
-- `AGENTTAPE_REPLAY=1`
-- `AGENTTAPE_REPLAY_TAPE_PATH=<tape>`
-- `AGENTTAPE_REPLAY_MODE=<mode>`
+When `agenttape replay` sets replay env vars, wrappers:
+- return recorded LLM outputs from tape
+- return recorded tool outputs from tape
+- validate terminal runtime event
+- avoid live model/tool execution in `full` mode
 
-In replay mode:
-- wrapped OpenAI calls return recorded LLM outputs from tape
-- wrapped tools return recorded tool results from tape
-- terminal event recording validates against recorded terminal event
-- live model/tool execution is bypassed in `full` mode
+## Notes
 
-## Tool `call_id`
-
-Tool wrappers capture and validate `call_id` when provided by model tool calls.
-
-## Phase 3 Scope
-
-- `full` replay mode is implemented.
-- `tools-only`, `llm-only`, and `hybrid` are deferred and currently fail clearly.
+- Designed for current example flow, not full OpenAI API coverage.
+- `call_id` is captured and validated for tool events when present.

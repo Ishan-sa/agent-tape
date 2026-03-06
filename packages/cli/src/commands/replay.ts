@@ -46,7 +46,7 @@ function printSummary(summary: ReplaySummary): void {
 export async function runReplay(options: ReplayOptions): Promise<number> {
   if (options.mode !== "full") {
     throw new Error(
-      `Replay mode ${options.mode} is not implemented in Phase 3. Implemented mode: full.`,
+      `Replay mode ${options.mode} is not implemented yet. Implemented mode: full.`,
     );
   }
 

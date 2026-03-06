@@ -6,17 +6,45 @@ on:
   pull_request:
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10.6.2
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm build
-      - run: pnpm typecheck
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Core verification (read fixture tape)
+        run: |
+          node --input-type=module <<'EOF2'
+          import { readTape } from './packages/core/dist/index.js';
+          const tape = await readTape('./fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl');
+          if (tape.events.length < 1) {
+            throw new Error('Expected non-empty tape events');
+          }
+          console.log('core_ok', tape.metadata.runId, tape.events.length);
+          EOF2
+
+      - name: Example record
+        run: pnpm examples:record
+
+      - name: Example replay
+        run: pnpm examples:replay
+
+      - name: Example diff
+        run: pnpm examples:diff
