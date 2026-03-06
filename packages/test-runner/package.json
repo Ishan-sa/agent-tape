@@ -1,12 +1,9 @@
 {
-  "name": "@agenttape/cli",
-  "version": "0.4.0",
-  "description": "AgentTape CLI",
+  "name": "@agenttape/test-runner",
+  "version": "0.5.0",
+  "description": "Regression test runner for AgentTape tapes",
   "license": "MIT",
   "type": "module",
-  "bin": {
-    "agenttape": "dist/index.js"
-  },
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -21,11 +18,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@agenttape/adapter-openai": "workspace:*",
     "@agenttape/core": "workspace:*",
-    "@agenttape/diff-engine": "workspace:*",
-    "@agenttape/replay-engine": "workspace:*",
-    "@agenttape/test-runner": "workspace:*",
-    "commander": "^14.0.1"
+    "@agenttape/diff-engine": "workspace:*"
   }
 }

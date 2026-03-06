@@ -29,22 +29,5 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Core verification (read fixture tape)
-        run: |
-          node --input-type=module <<'EOF2'
-          import { readTape } from './packages/core/dist/index.js';
-          const tape = await readTape('./fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl');
-          if (tape.events.length < 1) {
-            throw new Error('Expected non-empty tape events');
-          }
-          console.log('core_ok', tape.metadata.runId, tape.events.length);
-          EOF2
-
-      - name: Example record
-        run: pnpm examples:record
-
-      - name: Example replay
-        run: pnpm examples:replay
-
-      - name: Example diff
-        run: pnpm examples:diff
+      - name: Test (includes record/replay/diff/test-runner verification)
+        run: pnpm test

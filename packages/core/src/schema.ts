@@ -15,6 +15,13 @@ const EVENT_TYPES: ReadonlySet<TapeEventType> = new Set([
   "llm_call_completed",
   "tool_call_started",
   "tool_call_completed",
+  "command_executed",
+  "file_written",
+  "read_file",
+  "write_file",
+  "run_command",
+  "git_commit",
+  "search_repo",
   "run_completed",
   "run_failed",
 ]);

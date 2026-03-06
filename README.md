@@ -1,29 +1,29 @@
 # AgentTape
 
-Universal record/replay/diff harness for tool-using AI agents.
+Universal record/replay/diff/test harness for tool-using coding agents.
 
-AgentTape helps engineers reproduce agent failures and detect regressions by storing runs as portable JSONL tapes, replaying them offline, and diffing behavior between runs.
+AgentTape captures agent behavior as versioned JSONL tapes so teams can reproduce failures, replay offline, diff regressions, and run behavior tests in CI.
 
 ## Why AgentTape Exists
 
-Teams building tool-using agents run into the same problem repeatedly:
-- a run fails in prod
-- you cannot deterministically reproduce it locally
-- changes to prompts/tools silently alter behavior
-- regressions are hard to catch before merge
+Agent workflows are hard to debug and harder to stabilize:
+- failures are hard to reproduce after the fact
+- tool choices drift silently between commits
+- regression checks are usually ad hoc
 
-AgentTape solves this by giving you a stable run artifact and deterministic tooling around it.
+AgentTape turns each run into a deterministic artifact you can replay and compare.
 
-## What Problem It Solves
+## The Problem It Solves
 
-AgentTape makes agent runs:
-- recordable: save run behavior to versioned JSONL
-- replayable: rerun offline without live model/tool dependencies
-- comparable: diff baseline vs current and surface meaningful drift
+AgentTape gives you:
+- `record`: persist a run as a tape
+- `replay`: verify behavior offline against recorded truth
+- `diff`: compare baseline vs current runs with severity
+- `test`: run tape-based regression tests from `agent-tests/`
 
 ## Install
 
-Prerequisites:
+Requirements:
 - Node.js 22+
 - pnpm 10+
 
@@ -36,42 +36,35 @@ pnpm build
 
 ## Quickstart
 
-Record:
 ```bash
 pnpm exec agenttape record --agent "node examples/support-agent-openai/index.js"
-```
-
-Replay:
-```bash
 pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline --mode full
-```
-
-Diff:
-```bash
 pnpm exec agenttape diff fixtures/tapes/regression/equivalent-baseline.jsonl fixtures/tapes/regression/equivalent-current.jsonl --summary
+pnpm exec agenttape test
 ```
 
-## CLI Examples
+## Record Example
 
-Record with metadata and redaction:
 ```bash
 pnpm exec agenttape record \
   --agent "node examples/support-agent-openai/index.js" \
   --out ./tapes \
   --redact default \
-  --metadata env=local \
-  --metadata team=agent
+  --metadata env=local
 ```
 
-Replay with invariant checks:
+## Replay Example
+
 ```bash
-pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl \
+pnpm exec agenttape replay \
+  fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl \
   --offline \
   --mode full \
   --assert-invariants
 ```
 
-Diff with CI fail behavior:
+## Diff Example
+
 ```bash
 pnpm exec agenttape diff \
   fixtures/tapes/regression/tool-sequence-baseline.jsonl \
@@ -80,54 +73,131 @@ pnpm exec agenttape diff \
   --fail-on-change
 ```
 
+## Agent Behavior Testing
+
+Tape-based tests live in `agent-tests/`:
+
+```text
+agent-tests/
+  create-homepage.tape.jsonl
+  update-auth.tape.jsonl
+```
+
+Run tests:
+
+```bash
+pnpm exec agenttape test
+```
+
+Update baselines intentionally:
+
+```bash
+pnpm exec agenttape test --update-baseline
+```
+
+Config file (`agenttape.config.json`):
+
+```json
+{
+  "testsDir": "agent-tests",
+  "ignoreFields": ["timestamp", "token_usage"],
+  "failOnMinor": false
+}
+```
+
+## Claude Code Integration
+
+AgentTape includes `@agenttape/integration-claude` with:
+- hooks-friendly event append helpers
+- optional stdio RPC server (`agenttape-claude-mcp`) exposing:
+  - `record_read_file`
+  - `record_write_file`
+  - `record_run_command`
+  - `record_tool_call`
+
+You can also append events directly with:
+
+```bash
+pnpm exec agenttape event '{"eventType":"write_file","payload":{"path":"app/page.tsx"}}' --tape ./tapes/2026-03-06/run_x.jsonl
+```
+
+## Generic Coding-Agent Session Recording
+
+Enable session mode:
+
+```bash
+pnpm exec agenttape record --session --agent "your-agent-command"
+```
+
+Session mode records high-level session events such as:
+- `run_command`
+- `git_commit`
+- plus any hook-emitted events (`read_file`, `write_file`, `command_executed`, etc.)
+
+## Using AgentTape with Cursor and Codex
+
+Use AgentTape in two practical ways:
+- wrap agent runs with `agenttape record --agent ...`
+- emit tool/filesystem/shell events via hooks using `agenttape event ...`
+
+This works for Cursor/Codex/Claude-style coding loops where shell + file actions are central.
+
 ## Example Tape Snippet
 
 ```json
-{"lineType":"event","eventType":"llm_call_started","payload":{"model":"gpt-4.1-mini","hasTools":true,"input":"..."}}
-{"lineType":"event","eventType":"tool_call_completed","payload":{"tool":"lookup_pricing","call_id":"tool-call-2","ok":true,"result":{"plan":"pro","price":"$49/month"}}}
-{"lineType":"event","eventType":"run_completed","payload":{"answer":"...","toolCallCount":2}}
+{"lineType":"event","eventType":"read_file","payload":{"path":"app/page.tsx"}}
+{"lineType":"event","eventType":"write_file","payload":{"path":"components/testimonials.tsx"}}
+{"lineType":"event","eventType":"run_command","payload":{"command":"npm run build","exitCode":0}}
 ```
 
 ## Privacy and Redaction
 
-AgentTape records request/response and tool payloads. Use redaction profiles in `record`:
-- `default`: common secret/token masking
-- `strict`: adds broader sensitive-field patterns
-- `off`: disables redaction
+Recording can capture sensitive data. Redaction profiles:
+- `default`
+- `strict`
+- `off`
 
-See [docs/redaction.md](docs/redaction.md) for policy details and caveats.
+Use:
+
+```bash
+pnpm exec agenttape record --redact default --agent "..."
+```
+
+See [docs/redaction.md](docs/redaction.md).
 
 ## Project Structure
 
 ```text
-packages/core            # Tape types, schema validation, reader/writer, redaction
-packages/adapter-openai  # Minimal OpenAI-tools-style record/replay integration
-packages/replay-engine   # Deterministic offline replay engine
-packages/diff-engine     # Semantic tape diff engine with severity model
-packages/cli             # agenttape CLI (record/replay/diff)
-examples/                # Runnable local example agent
-fixtures/                # Success/mismatch/regression tape fixtures
-docs/                    # User and maintainer docs
-spec/                    # JSON schema for tape format
+packages/core               # tape schema/types/reader/writer/redaction
+packages/adapter-openai     # openai-tools-style record/replay wrapper
+packages/replay-engine      # deterministic replay engine
+packages/diff-engine        # semantic diff + severity
+packages/test-runner        # tape-based regression tests
+packages/integration-claude # claude hooks + optional stdio RPC recorder
+packages/cli                # agenttape command-line interface
+examples/                   # runnable local example
+fixtures/                   # success/mismatch/regression fixtures
+agent-tests/                # baseline tapes for agent behavior tests
+docs/                       # user and maintainer docs
 ```
 
 ## Roadmap
 
 Near-term:
-- stabilize diff semantics and check controls
-- improve fixture coverage and edge-case docs
-- add release versioning and changelog cadence
+- improve replay coverage for additional modes beyond `full`
+- improve diff granularity controls
+- harden CI matrix and fixture breadth
 
 Later:
-- additional adapters
-- richer CI integration patterns
-- deeper semantic comparison options
+- additional adapters and integrations
+- richer reporting formats for CI annotations
 
 ## Contributing
 
-Contributions are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Typical local verification before PR:
+Local verification before PR:
+
 ```bash
 pnpm install
 pnpm build

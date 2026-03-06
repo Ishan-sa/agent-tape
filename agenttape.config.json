@@ -1,0 +1,5 @@
+{
+  "testsDir": "agent-tests",
+  "ignoreFields": ["timestamp", "token_usage"],
+  "failOnMinor": false
+}

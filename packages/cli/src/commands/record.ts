@@ -16,6 +16,7 @@ export interface RecordOptions {
   out: string;
   adapter: "openai";
   redact: RedactProfile;
+  session: boolean;
   name?: string;
   metadata: string[];
   quiet: boolean;
@@ -78,6 +79,31 @@ async function spawnAgent(command: string, quiet: boolean, env: NodeJS.ProcessEn
   });
 }
 
+async function readGitHead(cwd: string): Promise<string | null> {
+  const child = spawn("git rev-parse HEAD", {
+    cwd,
+    shell: true,
+    stdio: "pipe",
+    env: process.env,
+  });
+
+  let stdout = "";
+  child.stdout?.on("data", (chunk: Buffer) => {
+    stdout += chunk.toString("utf8");
+  });
+
+  return new Promise((resolvePromise) => {
+    child.once("error", () => resolvePromise(null));
+    child.once("exit", (code) => {
+      if (code !== 0) {
+        resolvePromise(null);
+        return;
+      }
+      resolvePromise(stdout.trim() || null);
+    });
+  });
+}
+
 async function appendTerminalEventIfMissing(
   tapePath: string,
   fallbackType: TapeEventType,
@@ -130,13 +156,26 @@ export async function runRecord(options: RecordOptions): Promise<number> {
     eventType: "run_started",
     payload: {
       adapter: options.adapter,
+      mode: options.session ? "session" : "agent",
       runName: options.name ?? null,
       command: options.agent,
       cwd: process.cwd(),
       metadata,
     },
   });
+
+  if (options.session) {
+    await writer.writeEvent({
+      eventType: "run_command",
+      payload: {
+        command: options.agent,
+        phase: "started",
+      },
+    });
+  }
   await writer.close();
+
+  const gitHeadBefore = options.session ? await readGitHead(process.cwd()) : null;
 
   const childResult = await spawnAgent(options.agent, options.quiet, {
     ...process.env,
@@ -146,9 +185,34 @@ export async function runRecord(options: RecordOptions): Promise<number> {
     AGENTTAPE_REDACT_PROFILE: options.redact,
     AGENTTAPE_RUN_NAME: options.name ?? "",
     AGENTTAPE_METADATA_JSON: JSON.stringify(metadata),
+    AGENTTAPE_SESSION: options.session ? "1" : "0",
   });
 
   const code = normalizeExitCode(childResult.code);
+
+  if (options.session) {
+    const sessionWriter = await TapeWriter.openForAppend(tapePath);
+    await sessionWriter.writeEvent({
+      eventType: "run_command",
+      payload: {
+        command: options.agent,
+        phase: "completed",
+        exitCode: code,
+      },
+    });
+
+    const gitHeadAfter = await readGitHead(process.cwd());
+    if (gitHeadBefore !== gitHeadAfter) {
+      await sessionWriter.writeEvent({
+        eventType: "git_commit",
+        payload: {
+          before: gitHeadBefore,
+          after: gitHeadAfter,
+        },
+      });
+    }
+    await sessionWriter.close();
+  }
 
   const events =
     code === 0

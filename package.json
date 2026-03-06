@@ -6,13 +6,14 @@
   "license": "MIT",
   "packageManager": "pnpm@10.6.2",
   "scripts": {
-    "build": "pnpm --filter @agenttape/core build && pnpm --filter @agenttape/replay-engine build && pnpm --filter @agenttape/diff-engine build && pnpm --filter @agenttape/adapter-openai build && pnpm --filter @agenttape/cli build && pnpm --filter @agenttape/example-support-agent-openai build",
-    "typecheck": "pnpm --filter @agenttape/core typecheck && pnpm --filter @agenttape/replay-engine typecheck && pnpm --filter @agenttape/diff-engine typecheck && pnpm --filter @agenttape/adapter-openai typecheck && pnpm --filter @agenttape/cli typecheck && pnpm --filter @agenttape/example-support-agent-openai typecheck",
+    "build": "pnpm --filter @agenttape/core build && pnpm --filter @agenttape/replay-engine build && pnpm --filter @agenttape/diff-engine build && pnpm --filter @agenttape/test-runner build && pnpm --filter @agenttape/adapter-openai build && pnpm --filter @agenttape/integration-claude build && pnpm --filter @agenttape/cli build && pnpm --filter @agenttape/example-support-agent-openai build",
+    "typecheck": "pnpm --filter @agenttape/core typecheck && pnpm --filter @agenttape/replay-engine typecheck && pnpm --filter @agenttape/diff-engine typecheck && pnpm --filter @agenttape/test-runner typecheck && pnpm --filter @agenttape/adapter-openai typecheck && pnpm --filter @agenttape/integration-claude typecheck && pnpm --filter @agenttape/cli typecheck && pnpm --filter @agenttape/example-support-agent-openai typecheck",
     "lint": "pnpm typecheck",
     "examples:record": "pnpm exec agenttape record --agent \"node examples/support-agent-openai/index.js\" --out ./.tmp/tapes --quiet",
     "examples:replay": "pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline --mode full",
     "examples:diff": "pnpm exec agenttape diff fixtures/tapes/regression/tool-sequence-baseline.jsonl fixtures/tapes/regression/tool-sequence-current.jsonl --summary",
-    "test": "pnpm build && pnpm typecheck && pnpm examples:record && pnpm examples:replay && pnpm examples:diff"
+    "examples:test": "pnpm exec agenttape test",
+    "test": "pnpm build && pnpm typecheck && pnpm examples:record && pnpm examples:replay && pnpm examples:diff && pnpm examples:test"
   },
   "devDependencies": {
     "@agenttape/cli": "workspace:*",

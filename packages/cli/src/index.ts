@@ -5,8 +5,10 @@ import type { RedactProfile } from "@agenttape/adapter-openai";
 import type { ReplayMode } from "@agenttape/replay-engine";
 
 import { runDiff } from "./commands/diff.js";
+import { runEvent } from "./commands/event.js";
 import { runRecord } from "./commands/record.js";
 import { runReplay } from "./commands/replay.js";
+import { runTests } from "./commands/test.js";
 
 function parseMetadataOption(value: string, previous: string[]): string[] {
   return [...previous, value];
@@ -47,6 +49,7 @@ program
   .option("--out <dir>", "Output directory", "./tapes")
   .option("--adapter <name>", "Adapter type", "openai")
   .option("--redact <profile>", "Redaction profile: default|strict|off", parseRedact, "default")
+  .option("--session", "Enable generic coding-agent session recording mode", false)
   .option("--name <run_name>", "Optional run name")
   .option("--metadata <key=value>", "Metadata entry (repeatable)", parseMetadataOption, [])
   .option("--quiet", "Suppress child process output", false)
@@ -56,6 +59,7 @@ program
       out: options.out,
       adapter: options.adapter,
       redact: options.redact,
+      session: options.session,
       name: options.name,
       metadata: options.metadata,
       quiet: options.quiet,
@@ -116,6 +120,32 @@ program
       check: options.check,
     });
 
+    if (code !== 0) {
+      process.exitCode = code;
+    }
+  });
+
+program
+  .command("test")
+  .description("Run AgentTape regression tests from configured test tapes")
+  .option("--update-baseline", "Overwrite baseline tapes with current runs", false)
+  .action(async (options) => {
+    const code = await runTests({
+      updateBaseline: options.updateBaseline,
+    });
+
+    if (code !== 0) {
+      process.exitCode = code;
+    }
+  });
+
+program
+  .command("event")
+  .description("Append a single event to an existing tape (hooks integration)")
+  .argument("<payload-json>", "JSON object: {\"eventType\":\"...\",\"payload\":{...}}")
+  .option("--tape <path>", "Tape path; defaults to AGENTTAPE_TAPE_PATH")
+  .action(async (payloadJson, options) => {
+    const code = await runEvent(payloadJson, options.tape);
     if (code !== 0) {
       process.exitCode = code;
     }
