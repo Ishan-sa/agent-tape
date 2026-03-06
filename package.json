@@ -1,13 +1,13 @@
 {
   "name": "agenttape",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Universal record/replay/diff harness for tool-using AI agents",
   "license": "MIT",
   "packageManager": "pnpm@10.6.2",
   "scripts": {
-    "build": "pnpm --filter @agenttape/core build && pnpm --filter @agenttape/replay-engine build && pnpm --filter @agenttape/adapter-openai build && pnpm --filter @agenttape/cli build && pnpm --filter @agenttape/example-support-agent-openai build",
-    "typecheck": "pnpm --filter @agenttape/core typecheck && pnpm --filter @agenttape/replay-engine typecheck && pnpm --filter @agenttape/adapter-openai typecheck && pnpm --filter @agenttape/cli typecheck && pnpm --filter @agenttape/example-support-agent-openai typecheck"
+    "build": "pnpm --filter @agenttape/core build && pnpm --filter @agenttape/replay-engine build && pnpm --filter @agenttape/diff-engine build && pnpm --filter @agenttape/adapter-openai build && pnpm --filter @agenttape/cli build && pnpm --filter @agenttape/example-support-agent-openai build",
+    "typecheck": "pnpm --filter @agenttape/core typecheck && pnpm --filter @agenttape/replay-engine typecheck && pnpm --filter @agenttape/diff-engine typecheck && pnpm --filter @agenttape/adapter-openai typecheck && pnpm --filter @agenttape/cli typecheck && pnpm --filter @agenttape/example-support-agent-openai typecheck"
   },
   "devDependencies": {
     "@agenttape/cli": "workspace:*",

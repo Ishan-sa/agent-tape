@@ -47,6 +47,9 @@ importers:
       '@agenttape/core':
         specifier: workspace:*
         version: link:../core
+      '@agenttape/diff-engine':
+        specifier: workspace:*
+        version: link:../diff-engine
       '@agenttape/replay-engine':
         specifier: workspace:*
         version: link:../replay-engine
@@ -56,7 +59,14 @@ importers:
 
   packages/core: {}
 
-  packages/diff-engine: {}
+  packages/diff-engine:
+    dependencies:
+      '@agenttape/core':
+        specifier: workspace:*
+        version: link:../core
+      '@agenttape/replay-engine':
+        specifier: workspace:*
+        version: link:../replay-engine
 
   packages/replay-engine:
     dependencies:

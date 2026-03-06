@@ -18,32 +18,34 @@ pnpm build
 pnpm exec agenttape record --agent "node examples/support-agent-openai/index.js"
 ```
 
-Expected output:
-- `run_id=<...>`
-- `tape_path=<...>.jsonl`
-- `event_count=<number>`
-- `status=completed`
-
 ## Replay a Run Offline
 
 ```bash
 pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline --mode full
 ```
 
-Expected summary:
-- `Status: success`
-- `Replayed LLM calls: 2`
-- `Replayed tool calls: 2`
-- `Mismatches: 0`
+## Diff Two Runs
 
-## Assert Invariants
+Equivalent pair (expect unchanged):
 
 ```bash
-pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline --mode full --assert-invariants
+pnpm exec agenttape diff fixtures/tapes/regression/equivalent-baseline.jsonl fixtures/tapes/regression/equivalent-current.jsonl --summary
 ```
 
-## JSON Output
+Output drift pair:
 
 ```bash
-pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --output json
+pnpm exec agenttape diff fixtures/tapes/regression/output-drift-baseline.jsonl fixtures/tapes/regression/output-drift-current.jsonl --summary
+```
+
+Tool sequence drift pair with CI failure behavior:
+
+```bash
+pnpm exec agenttape diff fixtures/tapes/regression/tool-sequence-baseline.jsonl fixtures/tapes/regression/tool-sequence-current.jsonl --summary --fail-on-change
+```
+
+JSON output:
+
+```bash
+pnpm exec agenttape diff fixtures/tapes/regression/terminal-status-baseline.jsonl fixtures/tapes/regression/terminal-status-current.jsonl --json
 ```

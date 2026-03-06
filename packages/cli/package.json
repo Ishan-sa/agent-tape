@@ -1,6 +1,6 @@
 {
   "name": "@agenttape/cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "AgentTape CLI",
   "license": "MIT",
   "type": "module",
@@ -23,6 +23,7 @@
   "dependencies": {
     "@agenttape/adapter-openai": "workspace:*",
     "@agenttape/core": "workspace:*",
+    "@agenttape/diff-engine": "workspace:*",
     "@agenttape/replay-engine": "workspace:*",
     "commander": "^14.0.1"
   }

@@ -5,14 +5,13 @@ AgentTape is a TypeScript monorepo for recording, replaying, and diffing tool-us
 Implemented now:
 - `agenttape record`
 - `agenttape replay`
+- `agenttape diff`
 - versioned JSONL tape format (`agenttape.v1`)
-- `@agenttape/core` tape writer/reader + IDs + timestamps + redaction
+- `@agenttape/core`, `@agenttape/replay-engine`, `@agenttape/diff-engine`
 - `@agenttape/adapter-openai` minimal OpenAI-tools-style record/replay wrappers
-- `@agenttape/replay-engine` deterministic offline replay for v1 OpenAI-tools flow
-- runnable example agent (`examples/support-agent-openai`)
 
 Not implemented yet:
-- diff engine behavior
+- advanced diff visualizations or UI
 
 ## Quick Start
 
@@ -21,42 +20,38 @@ pnpm install
 pnpm build
 pnpm exec agenttape record --agent "node examples/support-agent-openai/index.js"
 pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline
+pnpm exec agenttape diff fixtures/tapes/regression/equivalent-baseline.jsonl fixtures/tapes/regression/equivalent-current.jsonl --summary
 ```
 
-## `agenttape record`
+## `agenttape diff`
 
 ```bash
-agenttape record \
-  --agent "node examples/support-agent-openai/index.js" \
-  --out ./tapes \
-  --adapter openai \
-  --redact default \
-  --name "support-demo" \
-  --metadata env=local
+agenttape diff <baseline-tape> <current-tape> [options]
 ```
 
-## `agenttape replay`
+Options:
+- `--summary` (default)
+- `--json`
+- `--fail-on-change`
+- `--ignore timestamps`
+- `--ignore usage`
+- `--ignore final_output`
+- `--check tool-sequence`
+- `--check tool-args`
+- `--check tool-results`
+- `--check llm-finish-reason`
 
-```bash
-agenttape replay <tape-path> --offline --mode full
-```
-
-Phase 3 replay mode support:
-- `full`: implemented
-- `tools-only`, `llm-only`, `hybrid`: not implemented yet (fails clearly)
-
-Replay summary includes:
-- tape path
-- mode
-- status
-- replayed llm/tool call counts
-- duration
-- mismatch count
+Default behavior:
+- summary output
+- timestamps ignored
+- usage ignored
+- `--fail-on-change` exits non-zero on any `minor|major|breaking` severity
 
 ## Fixtures
 
 - success tapes: `fixtures/tapes/success/`
 - mismatch tapes: `fixtures/tapes/mismatch/`
+- regression diff fixtures: `fixtures/tapes/regression/`
 
 ## License
 

@@ -4,6 +4,7 @@ import { Command, InvalidArgumentError } from "commander";
 import type { RedactProfile } from "@agenttape/adapter-openai";
 import type { ReplayMode } from "@agenttape/replay-engine";
 
+import { runDiff } from "./commands/diff.js";
 import { runRecord } from "./commands/record.js";
 import { runReplay } from "./commands/replay.js";
 
@@ -37,7 +38,7 @@ const program = new Command();
 program
   .name("agenttape")
   .description("AgentTape CLI")
-  .version("0.3.0");
+  .version("0.4.0");
 
 program
   .command("record")
@@ -84,6 +85,35 @@ program
       assertInvariants: options.assertInvariants,
       output: options.output,
       failOnMismatch: options.failOnMismatch,
+    });
+
+    if (code !== 0) {
+      process.exitCode = code;
+    }
+  });
+
+program
+  .command("diff")
+  .description("Compare two AgentTape runs")
+  .argument("<baseline-tape>", "Path to baseline tape JSONL file")
+  .argument("<current-tape>", "Path to current tape JSONL file")
+  .option("--summary", "Summary output", true)
+  .option("--json", "JSON output", false)
+  .option("--fail-on-change", "Exit non-zero on any non-none change", false)
+  .option("--ignore <field>", "Ignore field: timestamps|usage|final_output", parseMetadataOption, [])
+  .option(
+    "--check <field>",
+    "Enable check: tool-sequence|tool-args|tool-results|llm-finish-reason",
+    parseMetadataOption,
+    [],
+  )
+  .action(async (baselineTape, currentTape, options) => {
+    const code = await runDiff(baselineTape, currentTape, {
+      summary: options.summary,
+      json: options.json,
+      failOnChange: options.failOnChange,
+      ignore: options.ignore,
+      check: options.check,
     });
 
     if (code !== 0) {
