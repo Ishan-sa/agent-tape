@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 import { Command, InvalidArgumentError } from "commander";
 
-import type { RedactProfile } from "@agenttape/adapter-openai";
+import type { RedactProfile } from "@agenttape/core";
 import type { ReplayMode } from "@agenttape/replay-engine";
 
+import { runClaudeHook } from "./commands/claude-hook.js";
+import { runInit } from "./commands/init.js";
 import { runDiff } from "./commands/diff.js";
 import { runEvent } from "./commands/event.js";
+import { runHooks } from "./commands/hooks.js";
 import { runRecord } from "./commands/record.js";
 import { runReplay } from "./commands/replay.js";
 import { runTests } from "./commands/test.js";
+import { runUi } from "./commands/ui.js";
 
 function parseMetadataOption(value: string, previous: string[]): string[] {
   return [...previous, value];
@@ -46,8 +50,7 @@ program
   .command("record")
   .description("Record one agent run into an AgentTape JSONL tape")
   .requiredOption("--agent <command>", "Agent command to execute")
-  .option("--out <dir>", "Output directory", "./tapes")
-  .option("--adapter <name>", "Adapter type", "openai")
+  .option("--out <dir>", "Output directory", "./agenttape/tapes")
   .option("--redact <profile>", "Redaction profile: default|strict|off", parseRedact, "default")
   .option("--session", "Enable generic coding-agent session recording mode", false)
   .option("--name <run_name>", "Optional run name")
@@ -57,7 +60,6 @@ program
     const code = await runRecord({
       agent: options.agent,
       out: options.out,
-      adapter: options.adapter,
       redact: options.redact,
       session: options.session,
       name: options.name,
@@ -146,6 +148,55 @@ program
   .option("--tape <path>", "Tape path; defaults to AGENTTAPE_TAPE_PATH")
   .action(async (payloadJson, options) => {
     const code = await runEvent(payloadJson, options.tape);
+    if (code !== 0) {
+      process.exitCode = code;
+    }
+  });
+
+program
+  .command("init")
+  .description("Set up AgentTape in the current project (creates folders, updates .gitignore, installs Claude Code hooks)")
+  .action(async () => {
+    const code = await runInit(process.cwd());
+    if (code !== 0) process.exitCode = code;
+  });
+
+program
+  .command("ui")
+  .description("Generate a self-contained HTML viewer for a tape file")
+  .argument("<tape-path>", "Path to tape JSONL file")
+  .option("--out <file>", "Output HTML file path (default: <tape>.html)")
+  .option("--no-open", "Do not open the file in a browser after generating")
+  .action(async (tapePath, options) => {
+    const uiOpts: Parameters<typeof runUi>[1] = { open: options.open !== false };
+    if (typeof options.out === "string") uiOpts.out = options.out;
+    const code = await runUi(tapePath, uiOpts);
+    if (code !== 0) {
+      process.exitCode = code;
+    }
+  });
+
+program
+  .command("hooks")
+  .description("Manage Claude Code hooks for passive session recording")
+  .argument("<subcommand>", "install or uninstall")
+  .action(async (subcommand: string) => {
+    if (subcommand !== "install" && subcommand !== "uninstall") {
+      console.error(`Unknown subcommand: ${subcommand}. Use install or uninstall.`);
+      process.exitCode = 1;
+      return;
+    }
+    const code = await runHooks(subcommand, {});
+    if (code !== 0) {
+      process.exitCode = code;
+    }
+  });
+
+program
+  .command("claude-hook")
+  .description("Internal: process a Claude Code hook payload from stdin and append to tape")
+  .action(async () => {
+    const code = await runClaudeHook();
     if (code !== 0) {
       process.exitCode = code;
     }

@@ -76,6 +76,8 @@ export interface RedactOptions {
   caseInsensitiveKeys?: boolean;
 }
 
+export type RedactProfile = "default" | "strict" | "off";
+
 export interface RedactionRecord {
   path: string;
   rule: "path" | "key" | "pattern";

@@ -1,25 +1,50 @@
-import { spawn } from "node:child_process";
-import { mkdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { exec, spawn } from "node:child_process";
+import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname, join, resolve } from "node:path";
 
-import { resolveRedactionProfile, type RedactProfile } from "@agenttape/adapter-openai";
 import {
   generateRunId,
+  readTape,
   readTapeEvents,
+  resolveRedactionProfile,
   TapeWriter,
+  type RedactProfile,
   type TapeEventLine,
   type TapeEventType,
 } from "@agenttape/core";
 
+import { generateTapeHtml } from "../html-export/generate.js";
+
 export interface RecordOptions {
   agent: string;
   out: string;
-  adapter: "openai";
   redact: RedactProfile;
   session: boolean;
   name?: string;
   metadata: string[];
   quiet: boolean;
+}
+
+async function ensureGitignore(cwd: string): Promise<void> {
+  const gitignorePath = join(cwd, ".gitignore");
+  const entry = "agenttape/";
+  try {
+    const content = await readFile(gitignorePath, "utf8");
+    if (content.split("\n").some((l) => l.trim() === entry)) return;
+    await appendFile(gitignorePath, (content.endsWith("\n") ? "" : "\n") + entry + "\n");
+  } catch {
+    await writeFile(gitignorePath, entry + "\n");
+  }
+}
+
+function openInBrowser(filePath: string): void {
+  const cmd =
+    process.platform === "darwin"
+      ? `open "${filePath}"`
+      : process.platform === "win32"
+        ? `start "" "${filePath}"`
+        : `xdg-open "${filePath}"`;
+  exec(cmd);
 }
 
 function parseMetadata(entries: string[]): Record<string, string> {
@@ -125,16 +150,15 @@ async function appendTerminalEventIfMissing(
 }
 
 export async function runRecord(options: RecordOptions): Promise<number> {
-  if (options.adapter !== "openai") {
-    throw new Error(`Unsupported adapter: ${options.adapter}`);
-  }
-
   const metadata = parseMetadata(options.metadata);
   const runId = generateRunId();
   const datePrefix = formatDatePrefix(new Date());
   const outDir = resolve(options.out);
   const tapeDir = join(outDir, datePrefix);
   const tapePath = join(tapeDir, `${runId}.jsonl`);
+  // HTML lives in a sibling "html" folder next to the "tapes" folder
+  const htmlDir = join(dirname(outDir), "html", datePrefix);
+  const htmlPath = join(htmlDir, `${runId}.html`);
   const redaction = resolveRedactionProfile(options.redact);
 
   await mkdir(tapeDir, { recursive: true });
@@ -155,7 +179,6 @@ export async function runRecord(options: RecordOptions): Promise<number> {
   await writer.writeEvent({
     eventType: "run_started",
     payload: {
-      adapter: options.adapter,
       mode: options.session ? "session" : "agent",
       runName: options.name ?? null,
       command: options.agent,
@@ -181,7 +204,6 @@ export async function runRecord(options: RecordOptions): Promise<number> {
     ...process.env,
     AGENTTAPE_RUN_ID: runId,
     AGENTTAPE_TAPE_PATH: tapePath,
-    AGENTTAPE_ADAPTER: options.adapter,
     AGENTTAPE_REDACT_PROFILE: options.redact,
     AGENTTAPE_RUN_NAME: options.name ?? "",
     AGENTTAPE_METADATA_JSON: JSON.stringify(metadata),
@@ -233,6 +255,21 @@ export async function runRecord(options: RecordOptions): Promise<number> {
   console.log(`tape_path=${tapePath}`);
   console.log(`event_count=${events.length}`);
   console.log(`status=${finalStatus}`);
+
+  // Generate HTML viewer and open in browser
+  try {
+    const tape = await readTape(tapePath);
+    const html = generateTapeHtml(tape);
+    await mkdir(htmlDir, { recursive: true });
+    await writeFile(htmlPath, html, "utf8");
+    console.log(`html_path=${htmlPath}`);
+    openInBrowser(htmlPath);
+  } catch {
+    // Non-fatal: viewer generation failing should not fail the record command
+  }
+
+  // Keep agenttape output out of the user's git history
+  await ensureGitignore(process.cwd());
 
   return code;
 }

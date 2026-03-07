@@ -16,7 +16,7 @@ pnpm typecheck
 pnpm test
 ```
 
-This runs build/typecheck and example record/replay/diff flows.
+This runs build, typecheck, and fixture-based replay/diff verification.
 
 ## Pull Request Guidelines
 

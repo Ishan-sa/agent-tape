@@ -1,210 +1,279 @@
 # AgentTape
 
-Universal record/replay/diff/test harness for tool-using coding agents.
+Record, replay, diff, and regression-test your Claude Code agent sessions.
 
-AgentTape captures agent behavior as versioned JSONL tapes so teams can reproduce failures, replay offline, diff regressions, and run behavior tests in CI.
+AgentTape captures every tool call, file write, and shell command Claude makes during a session — turning it into a versioned JSONL tape you can replay offline, diff against a baseline, and share as a self-contained HTML report.
 
-## Why AgentTape Exists
+---
 
-Agent workflows are hard to debug and harder to stabilize:
-- failures are hard to reproduce after the fact
-- tool choices drift silently between commits
-- regression checks are usually ad hoc
+## Why
 
-AgentTape turns each run into a deterministic artifact you can replay and compare.
+Claude Code sessions are black boxes. You run a task, files change, commands run — but there's no structured record of what actually happened or why. When something goes wrong (or right), you can't replay it, compare it against yesterday's run, or put it in CI.
 
-## The Problem It Solves
+AgentTape fixes that:
 
-AgentTape gives you:
-- `record`: persist a run as a tape
-- `replay`: verify behavior offline against recorded truth
-- `diff`: compare baseline vs current runs with severity
-- `test`: run tape-based regression tests from `agent-tests/`
+- **Debug** — see the exact sequence of tool calls and file reads that produced a result
+- **Replay offline** — re-run a session without hitting the API, deterministically
+- **Diff** — compare two sessions and get a severity-rated list of what changed
+- **Regression test** — save a good session as a baseline; CI fails when behaviour drifts
+
+---
 
 ## Install
 
-Requirements:
-- Node.js 22+
-- pnpm 10+
+```bash
+npm install -g agenttape
+```
+
+Or with npx (no install needed):
 
 ```bash
-git clone https://github.com/Ishan-sa/agent-tape.git
-cd agent-tape
-pnpm install
-pnpm build
+npx agenttape --help
 ```
+
+Requirements: **Node.js 22+**
+
+---
 
 ## Quickstart
 
-```bash
-pnpm exec agenttape record --agent "node examples/support-agent-openai/index.js"
-pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline --mode full
-pnpm exec agenttape diff fixtures/tapes/regression/equivalent-baseline.jsonl fixtures/tapes/regression/equivalent-current.jsonl --summary
-pnpm exec agenttape test
-```
-
-## Record Example
+**1. Set up in your project (one time)**
 
 ```bash
-pnpm exec agenttape record \
-  --agent "node examples/support-agent-openai/index.js" \
-  --out ./tapes \
-  --redact default \
-  --metadata env=local
+cd your-project
+agenttape init
 ```
 
-## Replay Example
+This creates `agenttape/` folders, adds them to `.gitignore`, and installs Claude Code hooks so recording is automatic.
+
+**2. Record a session**
 
 ```bash
-pnpm exec agenttape replay \
-  fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl \
-  --offline \
-  --mode full \
-  --assert-invariants
+agenttape record --session --agent "claude -p 'find all console.log statements and remove them'"
 ```
 
-## Diff Example
+Claude runs normally. When it finishes, a browser tab opens with the HTML viewer automatically.
+
+**3. That's it**
+
+Your tape lives at `agenttape/tapes/<date>/<run-id>.jsonl`.
+Your viewer lives at `agenttape/html/<date>/<run-id>.html`.
+Neither is committed to git.
+
+---
+
+## Commands
+
+### `agenttape init`
+
+Sets up AgentTape in your project:
+- Creates `agenttape/tapes/` and `agenttape/html/`
+- Adds `agenttape/` to `.gitignore`
+- Installs Claude Code hooks (`~/.claude/settings.json`)
 
 ```bash
-pnpm exec agenttape diff \
-  fixtures/tapes/regression/tool-sequence-baseline.jsonl \
-  fixtures/tapes/regression/tool-sequence-current.jsonl \
-  --summary \
-  --fail-on-change
+agenttape init
 ```
 
-## Agent Behavior Testing
+---
 
-Tape-based tests live in `agent-tests/`:
+### `agenttape record`
 
-```text
-agent-tests/
-  create-homepage.tape.jsonl
-  update-auth.tape.jsonl
-```
-
-Run tests:
+Records a Claude Code session. Spawns your agent command, captures all tool events via the installed hooks, and generates an HTML viewer when done.
 
 ```bash
-pnpm exec agenttape test
+agenttape record --session --agent "claude -p 'your task'"
 ```
 
-Update baselines intentionally:
+| Option | Default | Description |
+|---|---|---|
+| `--agent <cmd>` | required | Command to run |
+| `--session` | false | Enable session mode (captures file writes, commands, git commits) |
+| `--out <dir>` | `./agenttape/tapes` | Where to write tapes |
+| `--redact <profile>` | `default` | Redaction: `default` \| `strict` \| `off` |
+| `--name <name>` | — | Optional label for this run |
+| `--quiet` | false | Suppress agent output |
+
+Output:
+
+```
+run_id=run_abc123
+tape_path=agenttape/tapes/2026-03-07/run_abc123.jsonl
+event_count=23
+status=completed
+html_path=agenttape/html/2026-03-07/run_abc123.html
+```
+
+---
+
+### `agenttape ui`
+
+Generate (or regenerate) the HTML viewer for any tape.
 
 ```bash
-pnpm exec agenttape test --update-baseline
+agenttape ui agenttape/tapes/2026-03-07/run_abc123.jsonl
 ```
 
-Config file (`agenttape.config.json`):
+Opens in your browser automatically. Pass `--no-open` to just write the file.
+
+---
+
+### `agenttape replay`
+
+Replay a tape offline. Returns the same LLM and tool responses that were recorded — no API calls.
+
+```bash
+agenttape replay agenttape/tapes/2026-03-07/run_abc123.jsonl
+```
+
+Useful for verifying a tape is intact, debugging without spending credits, or running in CI.
+
+---
+
+### `agenttape diff`
+
+Compare two tapes. Reports what changed and at what severity.
+
+```bash
+agenttape diff baseline.jsonl current.jsonl --summary
+```
+
+Severity levels:
+
+| Level | Meaning |
+|---|---|
+| `none` | Only timestamps or irrelevant metadata changed |
+| `minor` | Output text drifted but tool flow is the same |
+| `major` | Tool sequence or call counts changed |
+| `breaking` | Run failed or terminal status changed |
+
+Use `--fail-on-change` to gate CI on any change.
+
+---
+
+### `agenttape test`
+
+Run tape-based regression tests. Stores baseline tapes in `agent-tests/`, re-runs the agent, diffs against the baseline.
+
+```bash
+agenttape test
+agenttape test --update-baseline   # accept current run as new baseline
+```
+
+Configure in `agenttape.config.json`:
 
 ```json
 {
   "testsDir": "agent-tests",
-  "ignoreFields": ["timestamp", "token_usage"],
+  "ignoreFields": ["timestamp"],
   "failOnMinor": false
 }
 ```
 
-## Claude Code Integration
+To add a baseline: copy a tape from `agenttape/tapes/` into `agent-tests/` and rename it descriptively (`add-auth.tape.jsonl`).
 
-AgentTape includes `@agenttape/integration-claude` with:
-- hooks-friendly event append helpers
-- optional stdio RPC server (`agenttape-claude-mcp`) exposing:
-  - `record_read_file`
-  - `record_write_file`
-  - `record_run_command`
-  - `record_tool_call`
+---
 
-You can also append events directly with:
+### `agenttape hooks`
+
+Manage Claude Code hooks manually (if you didn't use `init`).
 
 ```bash
-pnpm exec agenttape event '{"eventType":"write_file","payload":{"path":"app/page.tsx"}}' --tape ./tapes/2026-03-06/run_x.jsonl
+agenttape hooks install
+agenttape hooks uninstall
 ```
 
-## Generic Coding-Agent Session Recording
+Hooks write to `~/.claude/settings.json`. They capture:
+- `Write`, `Edit`, `MultiEdit` → `file_written` events
+- `Bash` → `command_executed` events
+- `Read` → `read_file` events
 
-Enable session mode:
+Hooks are **no-ops** unless `AGENTTAPE_TAPE_PATH` is set in the environment — safe to install globally, they do nothing outside a recording session.
+
+---
+
+## How it works
+
+```
+agenttape record --session --agent "claude ..."
+       │
+       ├─ creates tape file, sets AGENTTAPE_TAPE_PATH in env
+       ├─ spawns claude as a child process
+       │
+       │   claude runs...
+       │   ├─ reads files   → PostToolUse hook → agenttape claude-hook → appends read_file event
+       │   ├─ writes files  → PostToolUse hook → agenttape claude-hook → appends file_written event
+       │   └─ runs commands → PostToolUse hook → agenttape claude-hook → appends command_executed event
+       │
+       ├─ record waits for claude to exit
+       ├─ appends run_completed event
+       ├─ generates HTML viewer
+       └─ opens browser
+```
+
+---
+
+## Tape format
+
+Tapes are JSONL files. First line is metadata, subsequent lines are events:
+
+```jsonl
+{"lineType":"meta","format":"agenttape.v1","runId":"run_abc","createdAt":"...","agent":"claude -p ..."}
+{"lineType":"event","sequence":1,"eventType":"run_started","payload":{"mode":"session",...}}
+{"lineType":"event","sequence":2,"eventType":"read_file","payload":{"path":"src/auth.ts"}}
+{"lineType":"event","sequence":3,"eventType":"file_written","payload":{"path":"src/auth.ts","tool":"Edit"}}
+{"lineType":"event","sequence":4,"eventType":"command_executed","payload":{"command":"npm test","exitCode":0}}
+{"lineType":"event","sequence":5,"eventType":"run_completed","payload":{}}
+```
+
+Full spec: [docs/spec.md](docs/spec.md)
+
+---
+
+## Privacy
+
+Recording captures file paths, commands, and LLM inputs/outputs. Redaction is on by default:
+
+| Profile | What it redacts |
+|---|---|
+| `default` | API keys, bearer tokens, `authorization` and `password` fields |
+| `strict` | Everything above + email addresses, phone numbers |
+| `off` | Nothing |
 
 ```bash
-pnpm exec agenttape record --session --agent "your-agent-command"
+agenttape record --redact strict --session --agent "claude ..."
 ```
 
-Session mode records high-level session events such as:
-- `run_command`
-- `git_commit`
-- plus any hook-emitted events (`read_file`, `write_file`, `command_executed`, etc.)
+---
 
-## Using AgentTape with Cursor and Codex
+## Project structure
 
-Use AgentTape in two practical ways:
-- wrap agent runs with `agenttape record --agent ...`
-- emit tool/filesystem/shell events via hooks using `agenttape event ...`
-
-This works for Cursor/Codex/Claude-style coding loops where shell + file actions are central.
-
-## Example Tape Snippet
-
-```json
-{"lineType":"event","eventType":"read_file","payload":{"path":"app/page.tsx"}}
-{"lineType":"event","eventType":"write_file","payload":{"path":"components/testimonials.tsx"}}
-{"lineType":"event","eventType":"run_command","payload":{"command":"npm run build","exitCode":0}}
 ```
-
-## Privacy and Redaction
-
-Recording can capture sensitive data. Redaction profiles:
-- `default`
-- `strict`
-- `off`
-
-Use:
-
-```bash
-pnpm exec agenttape record --redact default --agent "..."
-```
-
-See [docs/redaction.md](docs/redaction.md).
-
-## Project Structure
-
-```text
-packages/core               # tape schema/types/reader/writer/redaction
-packages/adapter-openai     # openai-tools-style record/replay wrapper
-packages/replay-engine      # deterministic replay engine
+packages/core               # tape schema, reader, writer, redaction
+packages/replay-engine      # deterministic offline replay
 packages/diff-engine        # semantic diff + severity
 packages/test-runner        # tape-based regression tests
-packages/integration-claude # claude hooks + optional stdio RPC recorder
-packages/cli                # agenttape command-line interface
-examples/                   # runnable local example
-fixtures/                   # success/mismatch/regression fixtures
-agent-tests/                # baseline tapes for agent behavior tests
-docs/                       # user and maintainer docs
+packages/integration-claude # Claude Code hooks + MCP server utilities
+packages/cli                # agenttape CLI
+docs/                       # additional documentation
+fixtures/                   # fixture tapes for CI (replay/diff verification)
+agent-tests/                # your baseline tapes for regression testing
 ```
 
-## Roadmap
-
-Near-term:
-- improve replay coverage for additional modes beyond `full`
-- improve diff granularity controls
-- harden CI matrix and fixture breadth
-
-Later:
-- additional adapters and integrations
-- richer reporting formats for CI annotations
+---
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Local verification before PR:
-
 ```bash
 pnpm install
 pnpm build
-pnpm typecheck
 pnpm test
 ```
 
+---
+
 ## License
 
-MIT
+MIT — [Ishan Sachdeva](https://github.com/Ishan-sa)

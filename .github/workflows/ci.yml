@@ -29,5 +29,5 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test (includes record/replay/diff/test-runner verification)
-        run: pnpm test
+      - name: Diff regression fixtures
+        run: pnpm ci:diff

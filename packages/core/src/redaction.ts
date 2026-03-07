@@ -3,6 +3,7 @@ import type {
   JsonObject,
   JsonValue,
   RedactOptions,
+  RedactProfile,
   RedactResult,
   RedactionRecord,
   RedactionRule,
@@ -162,6 +163,23 @@ export function defaultRedactionOptions(): RedactOptions {
       { key: "token" },
       { pattern: "sk-[A-Za-z0-9]{16,}" },
       { pattern: "Bearer\\s+[A-Za-z0-9._-]+" },
+    ],
+  };
+}
+
+export function resolveRedactionProfile(profile: RedactProfile): RedactOptions | undefined {
+  if (profile === "off") return undefined;
+  if (profile === "default") return defaultRedactionOptions();
+  // strict: adds PII patterns on top of default
+  const base = defaultRedactionOptions();
+  return {
+    ...base,
+    rules: [
+      ...base.rules,
+      { key: "email" },
+      { key: "phone" },
+      { pattern: "\\b[0-9]{3}-[0-9]{2}-[0-9]{4}\\b" },
+      { pattern: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}" },
     ],
   };
 }

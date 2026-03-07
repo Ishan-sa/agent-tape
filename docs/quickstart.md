@@ -3,49 +3,67 @@
 ## Prerequisites
 
 - Node.js 22+
-- pnpm 10+
+- [Claude Code](https://claude.ai/code) installed and on your PATH
 
 ## Install
 
 ```bash
-git clone https://github.com/Ishan-sa/agent-tape.git
-cd agent-tape
-pnpm install
-pnpm build
+npm install -g agenttape
 ```
 
-## Record
+## Set up in your project
+
+Run once per project:
 
 ```bash
-pnpm exec agenttape record --agent "node examples/support-agent-openai/index.js"
+cd your-project
+agenttape init
 ```
 
-Session-mode record:
+This creates `agenttape/tapes/` and `agenttape/html/` folders, adds `agenttape/` to your `.gitignore`, and installs Claude Code hooks so all tool events are captured automatically.
+
+## Record a session
 
 ```bash
-pnpm exec agenttape record --session --agent "node examples/support-agent-openai/index.js"
+agenttape record --session --agent "claude -p 'your task here'"
 ```
 
-## Replay
+Claude runs normally. When it finishes the HTML viewer opens in your browser automatically.
+
+## View a tape
 
 ```bash
-pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline --mode full
+agenttape ui agenttape/tapes/<date>/<run-id>.jsonl
 ```
 
-## Diff
+## Replay offline
 
 ```bash
-pnpm exec agenttape diff fixtures/tapes/regression/equivalent-baseline.jsonl fixtures/tapes/regression/equivalent-current.jsonl --summary
+agenttape replay agenttape/tapes/<date>/<run-id>.jsonl
 ```
 
-## Agent Behavior Tests
+## Diff two sessions
 
 ```bash
-pnpm exec agenttape test
+agenttape diff agenttape/tapes/<date>/run-a.jsonl agenttape/tapes/<date>/run-b.jsonl --summary
 ```
 
-Update baselines:
+## Regression test
+
+Copy a tape you're happy with into `agent-tests/`:
 
 ```bash
-pnpm exec agenttape test --update-baseline
+cp agenttape/tapes/2026-03-07/run_abc.jsonl agent-tests/my-feature.tape.jsonl
+```
+
+Run tests:
+
+```bash
+agenttape test
+```
+
+Update baselines when behaviour intentionally changes:
+
+```bash
+agenttape test --update-baseline
 ```

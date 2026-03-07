@@ -8,3 +8,4 @@ examples/*/dist/
 examples/*/*.js
 examples/*/*.d.ts
 fixtures/*.jsonl
+agenttape/

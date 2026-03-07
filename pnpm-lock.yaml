@@ -21,29 +21,8 @@ importers:
         specifier: ^5.8.2
         version: 5.9.3
 
-  examples/support-agent-openai:
-    dependencies:
-      '@agenttape/adapter-openai':
-        specifier: workspace:*
-        version: link:../../packages/adapter-openai
-      '@agenttape/core':
-        specifier: workspace:*
-        version: link:../../packages/core
-
-  packages/adapter-openai:
-    dependencies:
-      '@agenttape/core':
-        specifier: workspace:*
-        version: link:../core
-      '@agenttape/replay-engine':
-        specifier: workspace:*
-        version: link:../replay-engine
-
   packages/cli:
     dependencies:
-      '@agenttape/adapter-openai':
-        specifier: workspace:*
-        version: link:../adapter-openai
       '@agenttape/core':
         specifier: workspace:*
         version: link:../core

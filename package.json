@@ -1,23 +1,43 @@
 {
   "name": "agenttape",
-  "version": "0.4.0",
-  "private": true,
-  "description": "Universal record/replay/diff harness for tool-using AI agents",
+  "version": "0.5.0",
+  "description": "Record, replay, diff, and regression-test Claude Code agent sessions",
   "license": "MIT",
+  "private": true,
   "bin": {
     "agenttape": "./bin/agenttape.cjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Ishan-sa/agent-tape.git"
+  },
+  "homepage": "https://github.com/Ishan-sa/agent-tape#readme",
+  "bugs": {
+    "url": "https://github.com/Ishan-sa/agent-tape/issues"
+  },
+  "keywords": [
+    "ai",
+    "agent",
+    "claude",
+    "claude-code",
+    "record",
+    "replay",
+    "testing",
+    "debugging",
+    "regression",
+    "developer-tools"
+  ],
+  "engines": {
+    "node": ">=22"
   },
   "packageManager": "pnpm@10.6.2",
   "scripts": {
     "prepare": "pnpm --filter @agenttape/cli build",
-    "build": "pnpm --filter @agenttape/core build && pnpm --filter @agenttape/replay-engine build && pnpm --filter @agenttape/diff-engine build && pnpm --filter @agenttape/test-runner build && pnpm --filter @agenttape/adapter-openai build && pnpm --filter @agenttape/integration-claude build && pnpm --filter @agenttape/cli build && pnpm --filter @agenttape/example-support-agent-openai build",
-    "typecheck": "pnpm --filter @agenttape/core typecheck && pnpm --filter @agenttape/replay-engine typecheck && pnpm --filter @agenttape/diff-engine typecheck && pnpm --filter @agenttape/test-runner typecheck && pnpm --filter @agenttape/adapter-openai typecheck && pnpm --filter @agenttape/integration-claude typecheck && pnpm --filter @agenttape/cli typecheck && pnpm --filter @agenttape/example-support-agent-openai typecheck",
+    "build": "pnpm --filter @agenttape/core build && pnpm --filter @agenttape/replay-engine build && pnpm --filter @agenttape/diff-engine build && pnpm --filter @agenttape/test-runner build && pnpm --filter @agenttape/integration-claude build && pnpm --filter @agenttape/cli build",
+    "typecheck": "pnpm --filter @agenttape/core typecheck && pnpm --filter @agenttape/replay-engine typecheck && pnpm --filter @agenttape/diff-engine typecheck && pnpm --filter @agenttape/test-runner typecheck && pnpm --filter @agenttape/integration-claude typecheck && pnpm --filter @agenttape/cli typecheck",
     "lint": "pnpm typecheck",
-    "examples:record": "pnpm exec agenttape record --agent \"node examples/support-agent-openai/index.js\" --out ./.tmp/tapes --quiet",
-    "examples:replay": "pnpm exec agenttape replay fixtures/tapes/success/2026-03-06/run_4a5b2aec-c400-463d-95cd-47133dc14b36.jsonl --offline --mode full",
-    "examples:diff": "pnpm exec agenttape diff fixtures/tapes/regression/tool-sequence-baseline.jsonl fixtures/tapes/regression/tool-sequence-current.jsonl --summary",
-    "examples:test": "pnpm exec agenttape test",
-    "test": "pnpm build && pnpm typecheck && pnpm examples:record && pnpm examples:replay && pnpm examples:diff && pnpm examples:test",
+    "ci:diff": "pnpm exec agenttape diff fixtures/tapes/regression/tool-sequence-baseline.jsonl fixtures/tapes/regression/tool-sequence-current.jsonl --summary",
+    "test": "pnpm build && pnpm typecheck && pnpm ci:diff",
     "link:global": "pnpm link --global"
   },
   "devDependencies": {

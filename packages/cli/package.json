@@ -21,7 +21,6 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@agenttape/adapter-openai": "workspace:*",
     "@agenttape/core": "workspace:*",
     "@agenttape/diff-engine": "workspace:*",
     "@agenttape/replay-engine": "workspace:*",
