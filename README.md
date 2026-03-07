@@ -6,6 +6,12 @@ AgentTape captures every tool call, file write, and shell command Claude makes d
 
 ---
 
+## Demo
+
+https://github.com/user-attachments/assets/3cd0fe92-9a88-41ae-9759-c38c7482b336
+
+---
+
 ## Why
 
 Claude Code sessions are black boxes. You run a task, files change, commands run — but there's no structured record of what actually happened or why. When something goes wrong (or right), you can't replay it, compare it against yesterday's run, or put it in CI.
