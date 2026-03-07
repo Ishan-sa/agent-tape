@@ -82,6 +82,7 @@ program
   .option("--assert-invariants", "Validate tape invariants before replay", false)
   .option("--output <format>", "Output format: summary|json", parseOutput, "summary")
   .option("--fail-on-mismatch", "Return non-zero on mismatch", true)
+  .option("--verify-files", "Check that files written during session still exist on disk", false)
   .action(async (tapePath, options) => {
     const code = await runReplay({
       tapePath,
@@ -91,6 +92,7 @@ program
       assertInvariants: options.assertInvariants,
       output: options.output,
       failOnMismatch: options.failOnMismatch,
+      verifyFiles: options.verifyFiles,
     });
 
     if (code !== 0) {
