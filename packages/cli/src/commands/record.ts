@@ -1,5 +1,5 @@
 import { exec, spawn } from "node:child_process";
-import { appendFile, mkdir, readFile, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, open, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import {
@@ -80,7 +80,90 @@ function normalizeExitCode(code: number | null): number {
   return code;
 }
 
-async function spawnAgent(command: string, quiet: boolean, env: NodeJS.ProcessEnv): Promise<{ code: number | null; signal: NodeJS.Signals | null }> {
+function printEventProgress(event: TapeEventLine): void {
+  const { eventType } = event;
+  const p = (event.payload ?? {}) as Record<string, unknown>;
+  let label = "";
+  let detail = "";
+
+  switch (eventType) {
+    case "read_file":
+      label = "read";
+      detail = String(p["path"] ?? "");
+      break;
+    case "file_written":
+    case "write_file":
+      label = "write";
+      detail = String(p["path"] ?? "");
+      break;
+    case "command_executed":
+      label = "bash";
+      detail = String(p["command"] ?? "").slice(0, 72);
+      if (p["exitCode"] !== undefined) detail += `  [exit ${p["exitCode"]}]`;
+      break;
+    case "git_commit":
+      label = "commit";
+      detail = String(p["after"] ?? "").slice(0, 8);
+      break;
+    case "tool_call_started":
+      label = "tool";
+      detail = String(p["name"] ?? "");
+      break;
+    default:
+      return;
+  }
+
+  if (!label) return;
+  process.stderr.write(`  \u2192 ${label.padEnd(8)}  ${detail}\n`);
+}
+
+async function tailTapeEvents(tapePath: string, initialOffset: number): Promise<{ stop: () => void }> {
+  let offset = initialOffset;
+  let partial = "";
+
+  const interval = setInterval(async () => {
+    try {
+      const fd = await open(tapePath, "r");
+      const stat = await fd.stat();
+      if (stat.size > offset) {
+        const buf = Buffer.alloc(stat.size - offset);
+        await fd.read(buf, 0, buf.length, offset);
+        offset = stat.size;
+        const text = partial + buf.toString("utf8");
+        const lines = text.split("\n");
+        partial = lines.pop() ?? "";
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line) as TapeEventLine;
+            if (event.lineType === "event") printEventProgress(event);
+          } catch {
+            // skip malformed lines
+          }
+        }
+      }
+      await fd.close();
+    } catch {
+      // tape not ready yet — will retry
+    }
+  }, 200);
+
+  return { stop: () => clearInterval(interval) };
+}
+
+async function spawnAgent(
+  command: string,
+  quiet: boolean,
+  env: NodeJS.ProcessEnv,
+  tapePath: string,
+  initialTapeSize: number,
+): Promise<{ code: number | null; signal: NodeJS.Signals | null }> {
+  if (!quiet) {
+    process.stderr.write("\n  \u25CF Recording session...\n\n");
+  }
+
+  const tailer = quiet ? null : await tailTapeEvents(tapePath, initialTapeSize);
+
   const child = spawn(command, {
     shell: true,
     stdio: quiet ? "pipe" : "inherit",
@@ -88,17 +171,17 @@ async function spawnAgent(command: string, quiet: boolean, env: NodeJS.ProcessEn
   });
 
   if (quiet) {
-    child.stdout?.on("data", () => {
-      return;
-    });
-    child.stderr?.on("data", () => {
-      return;
-    });
+    child.stdout?.on("data", () => { return; });
+    child.stderr?.on("data", () => { return; });
   }
 
   return new Promise((resolvePromise, reject) => {
-    child.once("error", reject);
+    child.once("error", (err) => {
+      tailer?.stop();
+      reject(err);
+    });
     child.once("exit", (code, signal) => {
+      tailer?.stop();
       resolvePromise({ code, signal });
     });
   });
@@ -200,15 +283,32 @@ export async function runRecord(options: RecordOptions): Promise<number> {
 
   const gitHeadBefore = options.session ? await readGitHead(process.cwd()) : null;
 
-  const childResult = await spawnAgent(options.agent, options.quiet, {
-    ...process.env,
-    AGENTTAPE_RUN_ID: runId,
-    AGENTTAPE_TAPE_PATH: tapePath,
-    AGENTTAPE_REDACT_PROFILE: options.redact,
-    AGENTTAPE_RUN_NAME: options.name ?? "",
-    AGENTTAPE_METADATA_JSON: JSON.stringify(metadata),
-    AGENTTAPE_SESSION: options.session ? "1" : "0",
-  });
+  // Capture tape size now so the tailer only shows events written during the run
+  let initialTapeSize = 0;
+  try {
+    const fd = await open(tapePath, "r");
+    const stat = await fd.stat();
+    initialTapeSize = stat.size;
+    await fd.close();
+  } catch {
+    // tape may not be flushed yet; tailer will start from 0
+  }
+
+  const childResult = await spawnAgent(
+    options.agent,
+    options.quiet,
+    {
+      ...process.env,
+      AGENTTAPE_RUN_ID: runId,
+      AGENTTAPE_TAPE_PATH: tapePath,
+      AGENTTAPE_REDACT_PROFILE: options.redact,
+      AGENTTAPE_RUN_NAME: options.name ?? "",
+      AGENTTAPE_METADATA_JSON: JSON.stringify(metadata),
+      AGENTTAPE_SESSION: options.session ? "1" : "0",
+    },
+    tapePath,
+    initialTapeSize,
+  );
 
   const code = normalizeExitCode(childResult.code);
 
