@@ -1,6 +1,6 @@
 {
   "name": "@agenttape/test-runner",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Regression test runner for AgentTape tapes",
   "license": "MIT",
   "type": "module",

@@ -1,6 +1,6 @@
 {
   "name": "@agenttape/replay-engine",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Deterministic offline replay engine for AgentTape v1",
   "license": "MIT",
   "type": "module",

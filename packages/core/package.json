@@ -1,6 +1,6 @@
 {
   "name": "@agenttape/core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Core schema and JSONL tape utilities for AgentTape",
   "license": "MIT",
   "type": "module",
