@@ -3,7 +3,7 @@
   "version": "0.5.0",
   "description": "Record, replay, diff, and regression-test Claude Code agent sessions",
   "license": "MIT",
-  "private": true,
+  "files": ["bin"],
   "bin": {
     "agenttape": "./bin/agenttape.cjs"
   },
@@ -40,8 +40,10 @@
     "test": "pnpm build && pnpm typecheck && pnpm ci:diff",
     "link:global": "pnpm link --global"
   },
+  "dependencies": {
+    "@agenttape/cli": "workspace:*"
+  },
   "devDependencies": {
-    "@agenttape/cli": "workspace:*",
     "@types/node": "^22.13.10",
     "pnpm": "^10.6.2",
     "typescript": "^5.8.2"
