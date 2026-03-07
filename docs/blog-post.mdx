@@ -1,0 +1,211 @@
+---
+title: "I Built a Flight Recorder for Claude Code — and Published It to npm in One Weekend"
+date: "2026-03-06"
+description: "Claude Code shows you what it's doing live — but once a session ends, you can't replay it, diff it, or regression-test it. I built AgentTape to fix that."
+tags: ["AI", "Claude Code", "Open Source", "Developer Tools", "Vibe Coding"]
+image: "/blog/agenttape-launch.png"
+---
+
+Claude Code is one of the best tools I've used as a developer. You give it a task, it reads files, writes code, runs commands, commits — and most of the time it just works.
+
+But here's a problem I kept running into: **once a session ends, it's gone as anything useful**.
+
+You can scroll up in your terminal and read what happened. That's it. There's no structured artifact you can replay, no way to compare two runs of the same task, and no way to catch when the agent starts behaving differently than it did last week.
+
+Every other piece of production software has observability, diffs, and regression tests. Claude Code — supposedly the most powerful development tool we've ever built — ships none of that.
+
+So I built **AgentTape**: an open source tool that records every Claude Code session as a structured JSONL tape, lets you replay it offline, diff two runs side-by-side, and regression-test your agent like a real piece of software.
+
+It's on npm right now:
+
+```bash
+npm install -g agenttape
+```
+
+Here's how I built it, what it does, and where it's going.
+
+---
+
+## The Problem: Sessions End and Become Unstructured
+
+Claude Code already shows you exactly what it's doing while it works. You see each tool call, each file it reads, each command it runs — live, in the terminal. That part is fine.
+
+The problem is what happens after:
+
+- There's no way to replay a past session to verify it behaves the same
+- There's no way to compare this run against yesterday's run of the same task
+- There's no structured format you can pipe into CI or a test harness
+- There's no regression test you can write that fails when the agent drifts
+
+You can scroll up. But that's terminal text — not something you can parse, query, diff programmatically, or commit alongside your code as a versioned artifact.
+
+Meanwhile every other layer of the software stack has solved this. Services have distributed traces. Databases have query logs. Deployments have changelogs. The AI agent layer has nothing equivalent.
+
+---
+
+## What AgentTape Does
+
+AgentTape hooks into Claude Code's PostToolUse hooks. Every time Claude reads a file, writes code, runs a bash command, or makes a git commit — AgentTape captures it as a structured event in a JSONL tape file.
+
+The tape format looks like this:
+
+```jsonl
+{"lineType":"meta","runId":"run_abc123","agent":"claude","startedAt":"2026-03-06T10:00:00Z"}
+{"lineType":"event","eventType":"read_file","payload":{"path":"src/index.ts"}}
+{"lineType":"event","eventType":"file_written","payload":{"path":"src/utils.ts"}}
+{"lineType":"event","eventType":"command_executed","payload":{"command":"pnpm test","exitCode":0}}
+{"lineType":"event","eventType":"run_completed","payload":{"answer":"Done. Added the util function and tests pass."}}
+```
+
+Every session — every file touched, every command run, every answer — is now a replayable, diffable artifact.
+
+### Record
+
+```bash
+agenttape init           # one-time setup per project
+agenttape record --session --agent "claude -p 'refactor the auth module'"
+```
+
+While Claude works, you see events streaming live:
+
+```
+  ● Recording session...
+
+  → read      src/auth/session.ts
+  → read      src/auth/middleware.ts
+  → write     src/auth/session.ts
+  → bash      pnpm test  [exit 0]
+  → commit    a3f9c1b
+```
+
+When Claude finishes, a self-contained HTML viewer opens in your browser automatically.
+
+### Replay
+
+```bash
+agenttape replay agenttape/tapes/2026-03-06/run_abc123.jsonl
+```
+
+Output:
+```
+Tape:   agenttape/tapes/2026-03-06/run_abc123.jsonl
+Mode:   session
+Status: ✓ success
+Events: 24
+
+Files written (3):
+  ✓ src/auth/session.ts
+  ✓ src/auth/middleware.ts
+  ✓ tests/auth.test.ts
+
+Commands (2):
+  $ pnpm typecheck [exit 0]
+  $ pnpm test [exit 0]
+```
+
+### Diff
+
+Run the same task twice. Compare what changed:
+
+```bash
+agenttape diff run-monday.jsonl run-tuesday.jsonl --summary
+```
+
+```
+Diff result: changed
+Severity: major
+
+Tool sequence:
+- monday:  read_file -> write_file -> run_command
+- tuesday: read_file -> write_file -> write_file -> run_command
+
+Differences:
+- [major] Tool call count changed (3 → 4)
+- [minor] Output drift detected
+```
+
+Same prompt. Different behaviour. Now you know — and you can decide if that's acceptable or a regression.
+
+### Regression Test
+
+Copy a tape from a session you're happy with:
+
+```bash
+cp agenttape/tapes/2026-03-06/run_abc.jsonl agent-tests/auth-refactor.tape.jsonl
+agenttape test
+```
+
+If a future session deviates from the baseline — different files touched, extra commands, changed output — the test fails. You get a diff. You decide if it's intentional.
+
+---
+
+## How I Built It
+
+The technical stack is straightforward: TypeScript, pnpm monorepo, zero runtime dependencies outside of Node.js built-ins and `commander` for the CLI.
+
+The monorepo has six packages:
+
+| Package | What it does |
+|---|---|
+| `@agenttape/core` | JSONL tape format, read/write, types |
+| `@agenttape/replay-engine` | Deterministic replay, invariant evaluation |
+| `@agenttape/diff-engine` | Semantic diff between two tape runs |
+| `@agenttape/test-runner` | Regression test runner |
+| `@agenttape/integration-claude` | Claude Code hook handler |
+| `@agenttape/cli` | The `agenttape` CLI |
+
+The Claude Code integration uses the `PostToolUse` hooks in `~/.claude/settings.json`. When `agenttape hooks install` runs, it adds three matchers:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      { "matcher": "Write|Edit|MultiEdit", "hooks": [{ "type": "command", "command": "agenttape claude-hook" }] },
+      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "agenttape claude-hook" }] },
+      { "matcher": "Read", "hooks": [{ "type": "command", "command": "agenttape claude-hook" }] }
+    ]
+  }
+}
+```
+
+Each hook sends the tool payload to `agenttape claude-hook` on stdin. If `AGENTTAPE_TAPE_PATH` isn't set, it no-ops silently — so you can install globally and it never interferes with normal Claude Code usage.
+
+The HTML viewer is a pure function: `generateTapeHtml(tape)` returns a fully self-contained static HTML string. No build step, no server, no dependencies. Open it anywhere.
+
+---
+
+## What's Next
+
+This is v0.5.0. The foundation is solid. Here's where I want to take it:
+
+**Short term:**
+- `/agenttape` slash command — trigger recording from inside an active Claude Code session
+- VSCode extension — view tapes and diffs in the sidebar, run regression tests from the editor
+- Better HTML viewer — search, filter by event type, collapse/expand sections
+
+**Medium term:**
+- Support for other AI agents (Cursor, Windsurf, Copilot Workspace)
+- MCP server mode — stream tape events to external tools in real time
+- `agenttape watch` — continuous session monitoring, alert on behavioural drift
+
+**Longer term:**
+- Shared tape registry — publish anonymized tapes as benchmarks
+- AI-powered diff narration — let Claude explain what changed between two sessions and why it matters
+- Team dashboards — track agent reliability across your whole engineering org
+
+---
+
+## Try It
+
+```bash
+npm install -g agenttape
+cd your-project
+agenttape init
+agenttape record --session --agent "claude -p 'your task here'"
+```
+
+The GitHub repo is at [github.com/Ishan-sa/agent-tape](https://github.com/Ishan-sa/agent-tape). Stars, issues, and PRs are all welcome.
+
+We're at a genuinely weird inflection point. AI agents are writing more and more of our production code. But we're testing and auditing them like it's 2010 — which is to say, barely at all.
+
+AgentTape is a start at fixing that. Because if you're going to trust an agent with your codebase, you should be able to replay what it did, diff it against last time, and catch regressions before they ship.
